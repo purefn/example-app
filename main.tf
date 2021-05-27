@@ -2,13 +2,6 @@ provider "aws" {
   region = var.region
 }
 
-resource "aws_sns_topic" "sns_topic" {
-  name              = module.this.id
-  tags              = module.this.tags
-  kms_master_key_id = "alias/aws/sns"
-}
-
-
 resource "aws_cloudwatch_log_group" "app" {
   name              = module.this.id
   tags              = module.this.tags
@@ -68,4 +61,5 @@ module "pipeline" {
   repo_owner = var.repo_owner
   repo_name = var.repo_name
   branch = var.branch
+  github_oauth_token = var.github_oauth_token
 }

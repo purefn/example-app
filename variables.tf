@@ -65,3 +65,7 @@ variable "repo_name" {
 variable "branch" {
   type = string
 }
+
+variable "github_oauth_token" {
+  type = string
+}

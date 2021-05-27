@@ -51,7 +51,182 @@ resource "aws_iam_role_policy_attachment" "default" {
 
 resource "aws_iam_policy" "default" {
   name   = module.codepipeline_label.id
-  policy = data.aws_iam_policy_document.default.json
+  # policy = data.aws_iam_policy_document.default.json
+  policy = <<EOF
+{
+    "Statement": [
+        {
+            "Action": [
+                "iam:PassRole"
+            ],
+            "Resource": "*",
+            "Effect": "Allow",
+            "Condition": {
+                "StringEqualsIfExists": {
+                    "iam:PassedToService": [
+                        "cloudformation.amazonaws.com",
+                        "elasticbeanstalk.amazonaws.com",
+                        "ec2.amazonaws.com",
+                        "ecs-tasks.amazonaws.com"
+                    ]
+                }
+            }
+        },
+        {
+            "Action": [
+                "codecommit:CancelUploadArchive",
+                "codecommit:GetBranch",
+                "codecommit:GetCommit",
+                "codecommit:GetRepository",
+                "codecommit:GetUploadArchiveStatus",
+                "codecommit:UploadArchive"
+            ],
+            "Resource": "*",
+            "Effect": "Allow"
+        },
+        {
+            "Action": [
+                "codedeploy:CreateDeployment",
+                "codedeploy:GetApplication",
+                "codedeploy:GetApplicationRevision",
+                "codedeploy:GetDeployment",
+                "codedeploy:GetDeploymentConfig",
+                "codedeploy:RegisterApplicationRevision"
+            ],
+            "Resource": "*",
+            "Effect": "Allow"
+        },
+        {
+            "Action": [
+                "codestar-connections:UseConnection"
+            ],
+            "Resource": "*",
+            "Effect": "Allow"
+        },
+        {
+            "Action": [
+                "elasticbeanstalk:*",
+                "ec2:*",
+                "elasticloadbalancing:*",
+                "autoscaling:*",
+                "cloudwatch:*",
+                "s3:*",
+                "sns:*",
+                "cloudformation:*",
+                "rds:*",
+                "sqs:*",
+                "ecs:*"
+            ],
+            "Resource": "*",
+            "Effect": "Allow"
+        },
+        {
+            "Action": [
+                "lambda:InvokeFunction",
+                "lambda:ListFunctions"
+            ],
+            "Resource": "*",
+            "Effect": "Allow"
+        },
+        {
+            "Action": [
+                "opsworks:CreateDeployment",
+                "opsworks:DescribeApps",
+                "opsworks:DescribeCommands",
+                "opsworks:DescribeDeployments",
+                "opsworks:DescribeInstances",
+                "opsworks:DescribeStacks",
+                "opsworks:UpdateApp",
+                "opsworks:UpdateStack"
+            ],
+            "Resource": "*",
+            "Effect": "Allow"
+        },
+        {
+            "Action": [
+                "cloudformation:CreateStack",
+                "cloudformation:DeleteStack",
+                "cloudformation:DescribeStacks",
+                "cloudformation:UpdateStack",
+                "cloudformation:CreateChangeSet",
+                "cloudformation:DeleteChangeSet",
+                "cloudformation:DescribeChangeSet",
+                "cloudformation:ExecuteChangeSet",
+                "cloudformation:SetStackPolicy",
+                "cloudformation:ValidateTemplate"
+            ],
+            "Resource": "*",
+            "Effect": "Allow"
+        },
+        {
+            "Action": [
+                "codebuild:BatchGetBuilds",
+                "codebuild:StartBuild",
+                "codebuild:BatchGetBuildBatches",
+                "codebuild:StartBuildBatch"
+            ],
+            "Resource": "*",
+            "Effect": "Allow"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "devicefarm:ListProjects",
+                "devicefarm:ListDevicePools",
+                "devicefarm:GetRun",
+                "devicefarm:GetUpload",
+                "devicefarm:CreateUpload",
+                "devicefarm:ScheduleRun"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "servicecatalog:ListProvisioningArtifacts",
+                "servicecatalog:CreateProvisioningArtifact",
+                "servicecatalog:DescribeProvisioningArtifact",
+                "servicecatalog:DeleteProvisioningArtifact",
+                "servicecatalog:UpdateProduct"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "cloudformation:ValidateTemplate"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "ecr:DescribeImages"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "states:DescribeExecution",
+                "states:DescribeStateMachine",
+                "states:StartExecution"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "appconfig:StartDeployment",
+                "appconfig:StopDeployment",
+                "appconfig:GetDeployment"
+            ],
+            "Resource": "*"
+        }
+    ],
+    "Version": "2012-10-17"
+}
+EOF
 }
 
 data "aws_iam_policy_document" "default" {
@@ -193,6 +368,7 @@ resource "aws_codepipeline" "default" {
       output_artifacts = ["src"]
 
       configuration = {
+        OAuthToken = var.github_oauth_token
         Owner = var.repo_owner
         Repo = var.repo_name
         Branch = var.branch
@@ -240,5 +416,99 @@ resource "aws_codepipeline" "default" {
     # prevent github OAuthToken from causing updates, since it's removed from state file
     ignore_changes = [stage[0].action[0].configuration]
   }
+}
+
+# taken from https://github.com/hashicorp/terraform-provider-aws/issues/7012,
+# needs cleanup
+resource "aws_cloudwatch_event_rule" "image_push" {
+  name     = "ecr_image_push"
+  role_arn = aws_iam_role.cloudwatchevent_role.arn
+
+  event_pattern = <<EOF
+{
+  "source": [
+    "aws.ecr"
+  ],
+  "detail": {
+    "action-type": [
+      "PUSH"
+    ],
+    "image-tag": [
+      "latest"
+    ],
+    "repository-name": [
+      "${var.ecr_repository_name}"
+    ],
+    "result": [
+      "SUCCESS"
+    ]
+  },
+  "detail-type": [
+    "ECR Image Action"
+  ]
+}
+EOF
+}
+
+resource "aws_cloudwatch_event_target" "codepipeline" {
+  rule      = aws_cloudwatch_event_rule.image_push.name
+  target_id = "${var.ecr_repository_name}-Image-Push-Codepipeline"
+  arn       = aws_codepipeline.default.arn
+  role_arn  = aws_iam_role.cloudwatchevent_role.arn
+}
+
+
+module "cloudwatchevent_role_label" {
+  source     = "cloudposse/label/null"
+  version    = "0.24.1"
+  attributes = ["cloudwatchevent", "ecr"]
+
+  context = module.this.context
+}
+
+resource "aws_iam_role" "cloudwatchevent_role" {
+  name = module.cloudwatchevent_role_label.id
+  assume_role_policy = <<EOF
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "",
+            "Effect": "Allow",
+            "Principal": {
+                "Service": ["events.amazonaws.com"]
+            },
+            "Action": "sts:AssumeRole"
+        }
+    ]
+}
+EOF
+}
+
+resource "aws_iam_policy" "cloudwatchevent_policy" {
+  name = module.cloudwatchevent_role_label.id
+
+  policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+        "Effect": "Allow",
+        "Action": [
+            "codepipeline:StartPipelineExecution"
+        ],
+        "Resource": [
+            "${aws_codepipeline.default.arn}"
+        ]
+    }
+  ]
+}
+EOF
+}
+
+resource "aws_iam_policy_attachment" "cws_policy_attachment" {
+  name = module.cloudwatchevent_role_label.id
+  roles      = [aws_iam_role.cloudwatchevent_role.name]
+  policy_arn = aws_iam_policy.cloudwatchevent_policy.arn
 }
 
