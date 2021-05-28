@@ -5,7 +5,9 @@ output "security_group_id" {
 output "target_groups" {
   value = {
     blue_arn = module.alb.default_target_group_arn
+    blue_name = module.blue_target_group_label.id
     green_arn = aws_lb_target_group.green.arn
+    green_name = module.green_target_group_label.id
   }
 }
 

@@ -1,5 +1,5 @@
 {
-    "executionRoleArn": "arn:aws:iam::688551111084:role/ecsTaskExecutionRole",
+    "executionRoleArn": "arn:aws:iam::688551111084:role/uncommon-vibe-test3-app-task",
     "containerDefinitions": [
         {
             "name": "uncommon-vibe-test3-app",

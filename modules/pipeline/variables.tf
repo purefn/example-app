@@ -16,8 +16,8 @@ variable "alb_http_listener_arn" {
 
 variable "target_groups" {
   type = object({
-    blue_arn = string
-    green_arn = string
+    blue_name = string
+    green_name = string
   })
 }
 

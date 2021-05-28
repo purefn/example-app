@@ -333,10 +333,10 @@ module "code_deploy_blue_green" {
         listener_arns = [var.alb_http_listener_arn]
       }
       blue_target_group = {
-        name = var.target_groups.blue_arn
+        name = var.target_groups.blue_name
       }
       green_target_group = {
-        name = var.target_groups.green_arn
+        name = var.target_groups.green_name
       }
     }
   }
