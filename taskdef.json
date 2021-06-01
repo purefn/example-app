@@ -13,6 +13,11 @@
           "containerPort": 80
         }
       ],
+      "cpu": 256,
+      "memory": 512,
+      "memoryReservation": 128,
+      "stopTimeout": 30,
+      "startTimeout": 30,
       "healthCheck": {
         "retries": 3,
         "command": [

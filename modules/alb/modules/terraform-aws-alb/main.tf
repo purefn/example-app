@@ -149,6 +149,13 @@ resource "aws_lb_listener" "http_forward" {
       }
     }
   }
+
+  lifecycle {
+    ignore_changes = [
+      # added because the default action will be modified as part of the blue/green deployment
+      default_action
+    ]
+  }
 }
 
 resource "aws_lb_listener" "http_redirect" {

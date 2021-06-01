@@ -392,7 +392,12 @@ resource "aws_ecs_service" "ignore_changes_task_definition" {
   }
 
   lifecycle {
-    ignore_changes = [task_definition]
+    ignore_changes = [
+      task_definition,
+
+      # ignored because it is modified as part of the blue/green deployment
+      load_balancer
+    ]
   }
 }
 

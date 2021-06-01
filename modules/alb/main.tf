@@ -6,8 +6,12 @@ module "blue_target_group_label" {
 }
 
 module "alb" {
-  source  = "cloudposse/alb/aws"
-  version = "0.33.1"
+  # source  = "cloudposse/alb/aws"
+  # version = "0.33.1"
+
+  # we use a version of the above that has been modified to
+  # better support blue/green deployments
+  source = "./modules/terraform-aws-alb"
 
   vpc_id                                  = var.vpc_id
   security_group_ids                      = [var.vpc_security_group_id]

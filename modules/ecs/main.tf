@@ -58,8 +58,12 @@ module "container_definition" {
 }
 
 module "ecs_alb_service_task" {
-  source  = "cloudposse/ecs-alb-service-task/aws"
-  version = "0.55.1"
+  # source  = "cloudposse/ecs-alb-service-task/aws"
+  # version = "0.55.1"
+
+  # we use a version of the above that has been modified to
+  # better support blue/green deployments
+  source = "./modules/terraform-aws-ecs-alb-service-task"
 
   alb_security_group                = var.vpc_security_group_id
   # use_alb_security_group            = var.use_alb_security_group
