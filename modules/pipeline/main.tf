@@ -7,11 +7,37 @@ module "codepipeline_label" {
   context = module.this.context
 }
 
-resource "aws_s3_bucket" "default" {
-  bucket        = module.codepipeline_label.id
+module "codepipeline_artifacts_label" {
+  source     = "cloudposse/label/null"
+  version    = "0.24.1"
+  attributes = ["codepipeline", "artifacts"]
+
+  context = module.this.context
+}
+
+resource "aws_s3_bucket" "artifacts" {
+  bucket        = module.codepipeline_artifacts_label.id
   acl           = "private"
   force_destroy = false
-  tags          = module.codepipeline_label.tags
+  tags          = module.codepipeline_artifacts_label.tags
+}
+
+module "codepipeline_specs_label" {
+  source     = "cloudposse/label/null"
+  version    = "0.24.1"
+  attributes = ["codepipeline", "specs"]
+
+  context = module.this.context
+}
+
+resource "aws_s3_bucket" "specs" {
+  bucket        = module.codepipeline_specs_label.id
+  acl           = "private"
+  force_destroy = false
+  tags          = module.codepipeline_specs_label.tags
+  versioning {
+    enabled = true
+  }
 }
 
 module "codepipeline_assume_role_label" {
@@ -282,8 +308,8 @@ data "aws_iam_policy_document" "s3" {
     ]
 
     resources = [
-      join("", aws_s3_bucket.default.*.arn),
-      "${join("", aws_s3_bucket.default.*.arn)}/*"
+      join("", aws_s3_bucket.artifacts.*.arn),
+      "${join("", aws_s3_bucket.artifacts.*.arn)}/*"
     ]
 
     effect = "Allow"
@@ -346,7 +372,7 @@ resource "aws_codepipeline" "default" {
   role_arn = join("", aws_iam_role.default.*.arn)
 
   artifact_store {
-    location = join("", aws_s3_bucket.default.*.bucket)
+    location = join("", aws_s3_bucket.artifacts.*.bucket)
     type     = "S3"
   }
 
@@ -359,20 +385,34 @@ resource "aws_codepipeline" "default" {
     name = "Source"
 
     action {
-      name             = "Source"
+      name             = "Specs"
       category         = "Source"
       owner            = "AWS"
       provider         = "S3"
       version          = "1"
-      output_artifacts = ["src"]
+      output_artifacts = ["specs"]
 
       configuration = {
-        S3Bucket = module.codepipeline_label.id
+        S3Bucket = module.codepipeline_specs_label.id
         S3ObjectKey = "${module.this.id}.zip"
         # OAuthToken = var.github_oauth_token
         # Owner = var.repo_owner
         # Repo = var.repo_name
         # Branch = var.branch
+      }
+    }
+
+    action {
+      name = "Image"
+      category = "Source"
+      owner = "AWS"
+      provider = "ECR"
+      version = "1"
+      output_artifacts = ["image"]
+
+      configuration = {
+        RepositoryName = var.ecr_repository_name
+        ImageTag       = "latest"
       }
     }
   }
@@ -385,14 +425,16 @@ resource "aws_codepipeline" "default" {
       category        = "Deploy"
       owner           = "AWS"
       provider        = "CodeDeployToECS"
-      input_artifacts = ["src"]
+      input_artifacts = ["specs", "image"]
       version         = "1"
 
       configuration = {
         ApplicationName = module.code_deploy_blue_green.name
         DeploymentGroupName = module.code_deploy_blue_green.deployment_config_name
-        TaskDefinitionTemplateArtifact = "src"
-        AppSpecTemplateArtifact        = "src"
+        TaskDefinitionTemplateArtifact = "specs"
+        AppSpecTemplateArtifact        = "specs"
+        Image1ArtifactName = "image"
+        Image1ContainerName = "IMAGE1_NAME"
       }
     }
   }
@@ -405,95 +447,94 @@ resource "aws_codepipeline" "default" {
 
 # taken from https://github.com/hashicorp/terraform-provider-aws/issues/7012,
 # needs cleanup
-# resource "aws_cloudwatch_event_rule" "image_push" {
-  # name     = "ecr_image_push"
-  # role_arn = aws_iam_role.cloudwatchevent_role.arn
+resource "aws_cloudwatch_event_rule" "image_push" {
+  name     = "ecr_image_push"
+  role_arn = aws_iam_role.cloudwatchevent_role.arn
 
-  # event_pattern = <<EOF
-# {
-  # "source": [
-    # "aws.ecr"
-  # ],
-  # "detail": {
-    # "action-type": [
-      # "PUSH"
-    # ],
-    # "image-tag": [
-      # "latest"
-    # ],
-    # "repository-name": [
-      # "${var.ecr_repository_name}"
-    # ],
-    # "result": [
-      # "SUCCESS"
-    # ]
-  # },
-  # "detail-type": [
-    # "ECR Image Action"
-  # ]
-# }
-# EOF
-# }
-#
-# resource "aws_cloudwatch_event_target" "codepipeline" {
-  # rule      = aws_cloudwatch_event_rule.image_push.name
-  # target_id = "${var.ecr_repository_name}-Image-Push-Codepipeline"
-  # arn       = aws_codepipeline.default.arn
-  # role_arn  = aws_iam_role.cloudwatchevent_role.arn
-# }
-#
-#
-# module "cloudwatchevent_role_label" {
-  # source     = "cloudposse/label/null"
-  # version    = "0.24.1"
-  # attributes = ["cloudwatchevent", "ecr"]
-#
-  # context = module.this.context
-# }
-#
-# resource "aws_iam_role" "cloudwatchevent_role" {
-  # name = module.cloudwatchevent_role_label.id
-  # assume_role_policy = <<EOF
-# {
-    # "Version": "2012-10-17",
-    # "Statement": [
-        # {
-            # "Sid": "",
-            # "Effect": "Allow",
-            # "Principal": {
-                # "Service": ["events.amazonaws.com"]
-            # },
-            # "Action": "sts:AssumeRole"
-        # }
-    # ]
-# }
-# EOF
-# }
-#
-# resource "aws_iam_policy" "cloudwatchevent_policy" {
-  # name = module.cloudwatchevent_role_label.id
-#
-  # policy = <<EOF
-# {
-  # "Version": "2012-10-17",
-  # "Statement": [
-    # {
-        # "Effect": "Allow",
-        # "Action": [
-            # "codepipeline:StartPipelineExecution"
-        # ],
-        # "Resource": [
-            # "${aws_codepipeline.default.arn}"
-        # ]
-    # }
-  # ]
-# }
-# EOF
-# }
-#
-# resource "aws_iam_policy_attachment" "cws_policy_attachment" {
-  # name = module.cloudwatchevent_role_label.id
-  # roles      = [aws_iam_role.cloudwatchevent_role.name]
-  # policy_arn = aws_iam_policy.cloudwatchevent_policy.arn
-# }
+  event_pattern = <<EOF
+{
+  "source": [
+    "aws.ecr"
+  ],
+  "detail": {
+    "action-type": [
+      "PUSH"
+    ],
+    "image-tag": [
+      "latest"
+    ],
+    "repository-name": [
+      "${var.ecr_repository_name}"
+    ],
+    "result": [
+      "SUCCESS"
+    ]
+  },
+  "detail-type": [
+    "ECR Image Action"
+  ]
+}
+EOF
+}
+
+resource "aws_cloudwatch_event_target" "codepipeline" {
+  rule      = aws_cloudwatch_event_rule.image_push.name
+  target_id = "${var.ecr_repository_name}-Image-Push-Codepipeline"
+  arn       = aws_codepipeline.default.arn
+  role_arn  = aws_iam_role.cloudwatchevent_role.arn
+}
+
+module "cloudwatchevent_role_label" {
+  source     = "cloudposse/label/null"
+  version    = "0.24.1"
+  attributes = ["cloudwatchevent", "ecr"]
+
+  context = module.this.context
+}
+
+resource "aws_iam_role" "cloudwatchevent_role" {
+  name = module.cloudwatchevent_role_label.id
+  assume_role_policy = <<EOF
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "",
+            "Effect": "Allow",
+            "Principal": {
+                "Service": ["events.amazonaws.com"]
+            },
+            "Action": "sts:AssumeRole"
+        }
+    ]
+}
+EOF
+}
+
+resource "aws_iam_policy" "cloudwatchevent_policy" {
+  name = module.cloudwatchevent_role_label.id
+
+  policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+        "Effect": "Allow",
+        "Action": [
+            "codepipeline:StartPipelineExecution"
+        ],
+        "Resource": [
+            "${aws_codepipeline.default.arn}"
+        ]
+    }
+  ]
+}
+EOF
+}
+
+resource "aws_iam_policy_attachment" "cws_policy_attachment" {
+  name = module.cloudwatchevent_role_label.id
+  roles      = [aws_iam_role.cloudwatchevent_role.name]
+  policy_arn = aws_iam_policy.cloudwatchevent_policy.arn
+}
 
