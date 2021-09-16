@@ -1,11 +1,11 @@
 region = "us-east-2"
 
-namespace = "uncommon-vibe"
-stage = "test3"
+namespace = "example-app"
+stage = "test"
 name = "app"
 
 repo_owner = "purefn"
-repo_name = "tf-test"
+repo_name = "example-app"
 branch = "master"
 
 vpc_cidr_block = "10.0.0.0/16"

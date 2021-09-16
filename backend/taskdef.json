@@ -3,14 +3,14 @@
   "taskRoleArn": "arn:aws:iam::688551111084:role/uncommon-vibe-test3-app-task",
   "containerDefinitions": [
     {
-      "name": "uncommon-vibe-test3-app",
+      "name": "example-app-server",
       "image": "<IMAGE1_NAME>",
       "essential": true,
       "portMappings": [
         {
           "hostPort": 80,
           "protocol": "tcp",
-          "containerPort": 80
+          "containerPort": 8080
         }
       ],
       "cpu": 256,
@@ -32,7 +32,7 @@
         "logDriver": "awslogs",
         "secretOptions": null,
         "options": {
-          "awslogs-group": "uncommon-vibe-test3-app",
+          "awslogs-group": "example-app-server",
           "awslogs-region": "us-east-2",
           "awslogs-stream-prefix": "app"
         }
@@ -45,5 +45,5 @@
   "networkMode": "awsvpc",
   "cpu": "256",
   "memory": "512",
-  "family": "uncommon-vibe-test3-app"
+  "family": "example-app-server"
 }

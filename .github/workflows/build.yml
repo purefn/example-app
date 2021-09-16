@@ -1,0 +1,25 @@
+name: "Build"
+on:
+  push:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2.3.4
+    - uses: cachix/install-nix-action@v13
+      with:
+        nix_path: nixpkgs=channel:nixos-unstable
+    - uses: cachix/cachix-action@v10
+      with:
+        name: purefn
+        authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+
+    # build everything with nix
+    - run: nix build -L -v -f ci.nix
+    - run: nix-shell --run "echo OK"
+
+    # push app specs to s3
+    # - run: result/ci/bin/push-app-spec
+
+    # build and push docker images
+    # - run: result/ci/bin/push-docker-images
