@@ -12,7 +12,9 @@ jobs:
     - uses: cachix/cachix-action@v10
       with:
         name: purefn
-        authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+        # use authToken for private repos
+        # authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+        signingKey: '${{ secrets.CACHIX_SIGNING_KEY }}'
 
     # build everything with nix
     - run: nix build -L -v -f ci.nix
