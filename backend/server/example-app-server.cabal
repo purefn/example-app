@@ -5,14 +5,26 @@ version:            0.1.0.0
 author:             Richard Wallace
 maintainer:         rwallace@thewallacepack.net
 
-executable example-app-server
-  main-is:          Main.hs
-
+common options
+  default-language: Haskell2010
   build-depends:
     , base ^>=4.14.3.0
+
+executable example-app-server
+  import:           options
+  main-is:          Main.hs
+  hs-source-dirs:   app
+
+  build-depends:
     , http-types
     , wai
     , warp
 
-  hs-source-dirs:   app
+
+test-suite example-app-server-tests
+  import:           options
+  main-is:          Main.hs
+  hs-source-dirs:   tests
   default-language: Haskell2010
+  type:             exitcode-stdio-1.0
+

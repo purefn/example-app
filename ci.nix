@@ -11,6 +11,24 @@ in pkgs.linkFarm "ci" [
   }
 
   {
+    name = "checks";
+    path = pkgs.linkFarm "checks"
+      (pkgs.lib.flatten
+        (pkgs.lib.mapAttrsToList
+          (pname: hsPkg:
+            pkgs.lib.mapAttrsToList
+              (tname: path: {
+                inherit path;
+                name = "${pname}/${tname}";
+              })
+              (pkgs.lib.filterAttrs (_: pkgs.lib.isDerivation) hsPkg.checks)
+          )
+          (pkgs.haskell-nix.haskellLib.selectProjectPackages backend)
+        )
+      );
+  }
+
+  {
     name = "ci-tools";
     path = pkgs.symlinkJoin {
       name = "ci-tools";
