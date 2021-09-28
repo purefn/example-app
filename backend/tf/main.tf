@@ -61,5 +61,4 @@ module "pipeline" {
   repo_owner = var.repo_owner
   repo_name = var.repo_name
   branch = var.branch
-  github_oauth_token = var.github_oauth_token
 }
