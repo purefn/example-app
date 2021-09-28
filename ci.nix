@@ -3,7 +3,7 @@ let
 in pkgs.linkFarm "ci" [
   {
     name = "ci-tools";
-    path = pkgs.lib.symlinkJoin {
+    path = pkgs.symlinkJoin {
       name = "ci-tools";
       paths = [
         (pkgs.writeShellScriptBin "push-app-spec" ''
